@@ -14,8 +14,6 @@ class MainActivity : ComponentActivity() {
 
         nearbyManager = NearbyManager(this)
 
-        // Set isTablet = true when building/running on the tablet,
-        // false for the phone build.
         val isTablet = false
 
         setContent {

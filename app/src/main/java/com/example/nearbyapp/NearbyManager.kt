@@ -13,10 +13,8 @@ class NearbyManager(private val context: Context) {
     private val connectionsClient: ConnectionsClient = Nearby.getConnectionsClient(context)
     private val connectionStrategy = Strategy.P2P_POINT_TO_POINT
 
-    // Track the active connected endpoint ID
     private var activeEndpointId: String? = null
 
-    // Optional UI listener so Compose screens can react to connection events
     interface NearbyUiListener {
         fun onConnectionRequestReceived(endpointName: String, token: String, endpointId: String)
         fun onConnected(endpointId: String)
@@ -24,15 +22,11 @@ class NearbyManager(private val context: Context) {
     }
     var uiListener: NearbyUiListener? = null
 
-    // ---------- CONNECTION LIFECYCLE ----------
-
     private val connectionLifecycleCallback = object : ConnectionLifecycleCallback() {
         override fun onConnectionInitiated(endpointId: String, info: ConnectionInfo) {
             val secureToken = info.authenticationToken ?: "0000"
             Log.d(TAG, "Incoming connection from: ${info.endpointName}")
             Log.d(TAG, "VERIFICATION TOKEN IS: $secureToken")
-
-            // Send the request up to the UI instead of auto-accepting
             uiListener?.onConnectionRequestReceived(info.endpointName, secureToken, endpointId)
         }
 
@@ -60,8 +54,6 @@ class NearbyManager(private val context: Context) {
         connectionsClient.rejectConnection(endpointId)
     }
 
-    // ---------- ADVERTISING (Phone side) ----------
-
     fun startAdvertising(displayName: String) {
         val advertisingOptions = AdvertisingOptions.Builder()
             .setStrategy(connectionStrategy)
@@ -73,20 +65,14 @@ class NearbyManager(private val context: Context) {
             connectionLifecycleCallback,
             advertisingOptions
         )
-            .addOnSuccessListener {
-                Log.d(TAG, "Successfully started advertising as: $displayName")
-            }
-            .addOnFailureListener { exception ->
-                Log.e(TAG, "Advertising failed to start", exception)
-            }
+            .addOnSuccessListener { Log.d(TAG, "Successfully started advertising as: $displayName") }
+            .addOnFailureListener { exception -> Log.e(TAG, "Advertising failed to start", exception) }
     }
 
     fun stopAdvertising() {
         connectionsClient.stopAdvertising()
         Log.d(TAG, "Stopped advertising.")
     }
-
-    // ---------- DISCOVERY (Tablet side) ----------
 
     fun startDiscovery() {
         val discoveryOptions = DiscoveryOptions.Builder()
@@ -98,12 +84,8 @@ class NearbyManager(private val context: Context) {
             endpointDiscoveryCallback,
             discoveryOptions
         )
-            .addOnSuccessListener {
-                Log.d(TAG, "Successfully started discovery mode.")
-            }
-            .addOnFailureListener { exception ->
-                Log.e(TAG, "Discovery failed to start", exception)
-            }
+            .addOnSuccessListener { Log.d(TAG, "Successfully started discovery mode.") }
+            .addOnFailureListener { exception -> Log.e(TAG, "Discovery failed to start", exception) }
     }
 
     fun stopDiscovery() {
@@ -126,7 +108,6 @@ class NearbyManager(private val context: Context) {
                 }
                 .addOnFailureListener { exception ->
                     Log.e(TAG, "Failed to send connection request", exception)
-                    // Resume discovery if the request failed
                     startDiscovery()
                 }
         }
@@ -135,8 +116,6 @@ class NearbyManager(private val context: Context) {
             Log.d(TAG, "Endpoint lost sight: $endpointId")
         }
     }
-
-    // ---------- SENDING DATA ----------
 
     fun sendTextMessage(message: String) {
         val targetId = activeEndpointId ?: return Log.e(TAG, "No active peer connected to send data to.")
@@ -147,10 +126,6 @@ class NearbyManager(private val context: Context) {
             .addOnFailureListener { e -> Log.e(TAG, "Payload transmission failed.", e) }
     }
 
-    /**
-     * Copies the file into the app's sandboxed cache directory first (required to
-     * stay inside Android's storage permissions), then sends it as a Payload.
-     */
     fun sendSecureFile(originFile: File) {
         val targetId = activeEndpointId ?: return Log.e(TAG, "No active peer connected to send file.")
 
@@ -163,8 +138,6 @@ class NearbyManager(private val context: Context) {
             .addOnSuccessListener { Log.d(TAG, "File payload ID ${filePayload.id} sent successfully.") }
             .addOnFailureListener { e -> Log.e(TAG, "File payload stream failed.", e) }
     }
-
-    // ---------- RECEIVING DATA ----------
 
     private val incomingFilesMap = mutableMapOf<Long, Payload.File>()
 
