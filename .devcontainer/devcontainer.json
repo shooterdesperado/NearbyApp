@@ -1,0 +1,9 @@
+{
+  "name": "NearbyApp",
+  "image": "mcr.microsoft.com/devcontainers/java:17",
+  "remoteEnv": {
+    "ANDROID_HOME": "/home/vscode/android-sdk",
+    "ANDROID_SDK_ROOT": "/home/vscode/android-sdk",
+    "PATH": "${containerEnv:PATH}:/home/vscode/.local/bin:/home/vscode/android-sdk/cmdline-tools/latest/bin:/home/vscode/android-sdk/platform-tools"
+  }
+}

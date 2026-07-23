@@ -1,0 +1,73 @@
+tasks:
+  install-dependencies:
+    name: Install dependencies
+    command: |
+      set -euo pipefail
+
+      export DEV_HOME="${HOME:-/home/vscode}"
+      export HOME="$DEV_HOME"
+      export ANDROID_SDK_ROOT="${ANDROID_SDK_ROOT:-$DEV_HOME/android-sdk}"
+      export ANDROID_HOME="$ANDROID_SDK_ROOT"
+      export GRADLE_VERSION="${GRADLE_VERSION:-8.2.1}"
+      export GRADLE_HOME="$DEV_HOME/.local/gradle-$GRADLE_VERSION"
+      export PATH="$DEV_HOME/.local/bin:$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$ANDROID_SDK_ROOT/platform-tools:$PATH"
+
+      if ! command -v curl >/dev/null 2>&1 || ! command -v unzip >/dev/null 2>&1; then
+        sudo apt-get update
+        sudo apt-get install -y curl unzip
+      fi
+
+      mkdir -p "$ANDROID_SDK_ROOT" "$DEV_HOME/.local/bin"
+
+      if [ ! -x "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" ]; then
+        tmp_dir="$(mktemp -d)"
+        trap 'rm -rf "$tmp_dir"' EXIT
+        curl -fsSL https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -o "$tmp_dir/cmdline-tools.zip"
+        unzip -q "$tmp_dir/cmdline-tools.zip" -d "$tmp_dir"
+        mkdir -p "$ANDROID_SDK_ROOT/cmdline-tools"
+        rm -rf "$ANDROID_SDK_ROOT/cmdline-tools/latest"
+        mv "$tmp_dir/cmdline-tools" "$ANDROID_SDK_ROOT/cmdline-tools/latest"
+      fi
+
+      set +o pipefail
+      yes | sdkmanager --licenses >/dev/null
+      set -o pipefail
+      sdkmanager \
+        "platform-tools" \
+        "platforms;android-34" \
+        "build-tools;34.0.0"
+
+      if [ ! -x "$GRADLE_HOME/bin/gradle" ]; then
+        tmp_dir="$(mktemp -d)"
+        trap 'rm -rf "$tmp_dir"' EXIT
+        curl -fsSL "https://services.gradle.org/distributions/gradle-$GRADLE_VERSION-bin.zip" -o "$tmp_dir/gradle.zip"
+        unzip -q "$tmp_dir/gradle.zip" -d "$DEV_HOME/.local"
+      fi
+      ln -sf "$GRADLE_HOME/bin/gradle" "$DEV_HOME/.local/bin/gradle"
+
+      gradle --no-daemon dependencies >/dev/null
+    triggeredBy:
+      - manual
+      - postDevcontainerStart
+      - prebuild
+
+  build:
+    name: Build
+    command: |
+      set -euo pipefail
+
+      export DEV_HOME="${HOME:-/home/vscode}"
+      export HOME="$DEV_HOME"
+      export ANDROID_SDK_ROOT="${ANDROID_SDK_ROOT:-$DEV_HOME/android-sdk}"
+      export ANDROID_HOME="$ANDROID_SDK_ROOT"
+      export PATH="$DEV_HOME/.local/bin:$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$ANDROID_SDK_ROOT/platform-tools:$PATH"
+
+      if ! command -v gradle >/dev/null 2>&1 || [ ! -x "$ANDROID_SDK_ROOT/platform-tools/adb" ]; then
+        gitpod automations task start install-dependencies
+      fi
+
+      gradle --no-daemon :app:assembleDebug
+    dependsOn:
+      - install-dependencies
+    triggeredBy:
+      - manual
