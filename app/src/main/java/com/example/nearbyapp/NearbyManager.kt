@@ -118,7 +118,10 @@ class NearbyManager(private val context: Context) {
     }
 
     fun sendTextMessage(message: String) {
-        val targetId = activeEndpointId ?: return Log.e(TAG, "No active peer connected to send data to.")
+        val targetId = activeEndpointId ?: run {
+            Log.e(TAG, "No active peer connected to send data to.")
+            return
+        }
         val payload = Payload.fromBytes(message.toByteArray(Charsets.UTF_8))
 
         connectionsClient.sendPayload(targetId, payload)
@@ -127,7 +130,10 @@ class NearbyManager(private val context: Context) {
     }
 
     fun sendSecureFile(originFile: File) {
-        val targetId = activeEndpointId ?: return Log.e(TAG, "No active peer connected to send file.")
+        val targetId = activeEndpointId ?: run {
+            Log.e(TAG, "No active peer connected to send file.")
+            return
+        }
 
         val internalSecureFile = File(context.cacheDir, "shared_transfer_${System.currentTimeMillis()}.tmp")
         originFile.copyTo(internalSecureFile, overwrite = true)
